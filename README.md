@@ -18,7 +18,7 @@ Any device using the Zound Industries BLE protocol (`-1337-1dea-feed-c0ffee70c0d
 - Marshall Motif II ANC
 - Marshall Major IV, Monitor III ANC, and others
 
-> See [marshall-protocol](https://github.com/bbuddha/marshall-protocol) for the full reverse-engineered protocol documentation.
+> See [marshall-protocol](https://github.com/c0ffee-audio/marshall-protocol) for the full reverse-engineered protocol documentation.
 
 ## Requirements
 
