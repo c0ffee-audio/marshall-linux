@@ -10,9 +10,15 @@ export function GetANC():Promise<string>;
 
 export function GetBattery():Promise<number>;
 
+export function GetCachedDevices():Promise<Array<main.ScannedDevice>>;
+
+export function GetCapabilities():Promise<main.Capabilities>;
+
 export function GetInfo():Promise<main.DeviceInfo>;
 
 export function IsConnected():Promise<boolean>;
+
+export function ScanDevices():Promise<Array<main.ScannedDevice>>;
 
 export function SetANC(arg1:string):Promise<void>;
 
