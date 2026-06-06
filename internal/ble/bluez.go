@@ -2,12 +2,18 @@ package ble
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 )
+
+type ScannedDevice struct {
+	Name    string
+	Address string
+}
 
 const (
 	bluezService   = "org.bluez"
@@ -99,13 +105,89 @@ func Connect(target string) (*Client, error) {
 	return &Client{conn: conn, devPath: devPath, chars: chars}, nil
 }
 
+// collectNamedDevices lit GetManagedObjects et ajoute les appareils nommés dans devices.
+// seen évite les doublons entre deux appels successifs.
+func collectNamedDevices(conn *dbus.Conn, seen map[string]bool) []ScannedDevice {
+	obj := conn.Object(bluezService, "/")
+	result := make(map[dbus.ObjectPath]map[string]map[string]dbus.Variant)
+	if err := obj.Call(objManager+".GetManagedObjects", 0).Store(&result); err != nil {
+		return nil
+	}
+	var devices []ScannedDevice
+	for _, ifaces := range result {
+		devIface, ok := ifaces["org.bluez.Device1"]
+		if !ok {
+			continue
+		}
+		name, _ := devIface["Name"].Value().(string)
+		if name == "" {
+			name, _ = devIface["Alias"].Value().(string)
+		}
+		if name == "" {
+			continue
+		}
+		addr, _ := devIface["Address"].Value().(string)
+		if seen[addr] || addr == "" {
+			continue
+		}
+		seen[addr] = true
+		devices = append(devices, ScannedDevice{Name: name, Address: addr})
+	}
+	return devices
+}
+
+// GetCachedDevices retourne immédiatement les appareils déjà connus de BlueZ (pas de scan).
+func GetCachedDevices() ([]ScannedDevice, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return nil, fmt.Errorf("dbus: %w", err)
+	}
+	defer conn.Close()
+
+	seen := map[string]bool{}
+	devices := collectNamedDevices(conn, seen)
+	sort.Slice(devices, func(i, j int) bool { return devices[i].Name < devices[j].Name })
+	return devices, nil
+}
+
+// ScanDevices effectue un scan BLE de 8s et retourne tous les appareils nommés trouvés.
+func ScanDevices() ([]ScannedDevice, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return nil, fmt.Errorf("dbus: %w", err)
+	}
+	defer conn.Close()
+
+	seen := map[string]bool{}
+	// inclure les appareils déjà en cache avant le scan
+	devices := collectNamedDevices(conn, seen)
+
+	adapter := conn.Object(bluezService, "/org/bluez/hci0")
+	filter := map[string]dbus.Variant{
+		"Transport": dbus.MakeVariant("le"),
+	}
+	adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, filter)
+	adapter.Call("org.bluez.Adapter1.StartDiscovery", 0)
+	time.Sleep(8 * time.Second)
+	adapter.Call("org.bluez.Adapter1.StopDiscovery", 0)
+
+	// ajouter les nouveaux appareils découverts pendant le scan
+	devices = append(devices, collectNamedDevices(conn, seen)...)
+
+	sort.Slice(devices, func(i, j int) bool { return devices[i].Name < devices[j].Name })
+	return devices, nil
+}
+
 // resolveDevice trouve le path D-Bus de l'appareil par adresse MAC ou par nom.
-// Si l'appareil n'est pas en cache, lance un scan BLE court.
 func resolveDevice(conn *dbus.Conn, target string) (string, error) {
 	isMac := strings.Count(target, ":") == 5
 
-	// Toujours scanner pour trouver le device BLE (adresse aléatoire)
-	// car l'adresse BLE peut changer entre les sessions
+	// vérifier le cache d'abord (évite un scan si l'appareil est déjà connu)
+	if path := findDevice(conn, target, isMac); path != "" {
+		fmt.Printf("found in cache: %s\n", path)
+		return path, nil
+	}
+
 	fmt.Printf("scanning for %q...\n", target)
 	adapter := conn.Object(bluezService, "/org/bluez/hci0")
 	filter := map[string]dbus.Variant{
@@ -114,13 +196,12 @@ func resolveDevice(conn *dbus.Conn, target string) (string, error) {
 	adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, filter)
 	adapter.Call("org.bluez.Adapter1.StartDiscovery", 0)
 
-	// scan jusqu'à 8s ou jusqu'à trouver le device BLE
 	deadline := time.Now().Add(8 * time.Second)
 	for time.Now().Before(deadline) {
 		time.Sleep(500 * time.Millisecond)
-		if path := findBLEDevice(conn, target, isMac); path != "" {
+		if path := findDevice(conn, target, isMac); path != "" {
 			adapter.Call("org.bluez.Adapter1.StopDiscovery", 0)
-			fmt.Printf("found at %s\n", path)
+			fmt.Printf("found: %s\n", path)
 			return path, nil
 		}
 	}
@@ -129,74 +210,62 @@ func resolveDevice(conn *dbus.Conn, target string) (string, error) {
 	return "", fmt.Errorf("device %q not found - make sure it's on and in range", target)
 }
 
-// findBLEDevice cherche uniquement les appareils BLE (AddressType = random).
-func findBLEDevice(conn *dbus.Conn, target string, isMac bool) string {
+// findDevice cherche un appareil par adresse MAC ou par nom.
+// Pour une MAC : correspondance exacte, sans filtre de type d'adresse.
+// Pour un nom : préfère les entrées BLE (random), accepte les autres en fallback.
+func findDevice(conn *dbus.Conn, target string, isMac bool) string {
 	obj := conn.Object(bluezService, "/")
 	result := make(map[dbus.ObjectPath]map[string]map[string]dbus.Variant)
 	if err := obj.Call(objManager+".GetManagedObjects", 0).Store(&result); err != nil {
 		return ""
 	}
 
-	for path, ifaces := range result {
-		devIface, ok := ifaces["org.bluez.Device1"]
-		if !ok {
-			continue
-		}
-		addrType, _ := devIface["AddressType"].Value().(string)
-		if addrType != "random" {
-			continue // on veut seulement le BLE
-		}
-		if isMac {
+	if isMac {
+		for path, ifaces := range result {
+			devIface, ok := ifaces["org.bluez.Device1"]
+			if !ok {
+				continue
+			}
 			addr, _ := devIface["Address"].Value().(string)
 			if strings.EqualFold(addr, target) {
 				return string(path)
 			}
-		} else {
-			name, _ := devIface["Name"].Value().(string)
-			if strings.EqualFold(name, target) ||
-				strings.Contains(strings.ToLower(name), strings.ToLower(target)) {
-				return string(path)
-			}
 		}
-	}
-	return ""
-}
-
-func findInObjects(conn *dbus.Conn, target string, isMac bool) string { //nolint:unused
-	obj := conn.Object(bluezService, "/")
-	result := make(map[dbus.ObjectPath]map[string]map[string]dbus.Variant)
-	if err := obj.Call(objManager+".GetManagedObjects", 0).Store(&result); err != nil {
 		return ""
 	}
 
-	var found string
+	// recherche par nom : random > public > fallback
+	var best, fallback string
 	for path, ifaces := range result {
 		devIface, ok := ifaces["org.bluez.Device1"]
 		if !ok {
 			continue
 		}
-		var match bool
-		if isMac {
-			addr, _ := devIface["Address"].Value().(string)
-			match = strings.EqualFold(addr, target)
-		} else {
-			name, _ := devIface["Name"].Value().(string)
-			match = strings.EqualFold(name, target) ||
-				strings.Contains(strings.ToLower(name), strings.ToLower(target))
-		}
+		name, _ := devIface["Name"].Value().(string)
+		alias, _ := devIface["Alias"].Value().(string)
+		tgt := strings.ToLower(target)
+		match := strings.EqualFold(name, target) ||
+			strings.Contains(strings.ToLower(name), tgt) ||
+			strings.Contains(strings.ToLower(alias), tgt)
 		if !match {
 			continue
 		}
-		// preferrer les appareils BLE (AddressType random ou public BLE)
-		// les appareils BR/EDR n'ont pas de caractéristiques GATT dans BlueZ
 		addrType, _ := devIface["AddressType"].Value().(string)
-		if addrType == "random" {
-			return string(path) // BLE aléatoire = priorité max
+		switch addrType {
+		case "random":
+			best = string(path)
+		default:
+			if fallback == "" {
+				fallback = string(path)
+			}
 		}
-		found = string(path) // garder en fallback
 	}
-	return found
+	if best != "" {
+		return best
+	}
+	return fallback
 }
+
 
 func ensurePaired(conn *dbus.Conn, devPath string) error {
 	obj := conn.Object(bluezService, dbus.ObjectPath(devPath))

@@ -18,12 +18,24 @@ export function GetBattery() {
   return window['go']['main']['App']['GetBattery']();
 }
 
+export function GetCachedDevices() {
+  return window['go']['main']['App']['GetCachedDevices']();
+}
+
+export function GetCapabilities() {
+  return window['go']['main']['App']['GetCapabilities']();
+}
+
 export function GetInfo() {
   return window['go']['main']['App']['GetInfo']();
 }
 
 export function IsConnected() {
   return window['go']['main']['App']['IsConnected']();
+}
+
+export function ScanDevices() {
+  return window['go']['main']['App']['ScanDevices']();
 }
 
 export function SetANC(arg1) {

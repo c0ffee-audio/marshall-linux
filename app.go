@@ -4,9 +4,26 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bbuddha/marshall-linux/internal/ble"
 	"github.com/bbuddha/marshall-linux/internal/device"
 	"github.com/bbuddha/marshall-linux/internal/protocol"
 )
+
+type ScannedDevice struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
+type Capabilities struct {
+	HasANC          bool `json:"hasANC"`
+	HasEQ           bool `json:"hasEQ"`
+	HasBattery      bool `json:"hasBattery"`
+	HasVolume       bool `json:"hasVolume"`
+	HasRoomPlacement bool `json:"hasRoomPlacement"`
+	HasPartyMode    bool `json:"hasPartyMode"`
+	HasNightMode    bool `json:"hasNightMode"`
+	HasLED          bool `json:"hasLED"`
+}
 
 type App struct {
 	ctx context.Context
@@ -26,6 +43,50 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+func bleDevicesToApp(in []ble.ScannedDevice) []ScannedDevice {
+	out := make([]ScannedDevice, len(in))
+	for i, d := range in {
+		out[i] = ScannedDevice{Name: d.Name, Address: d.Address}
+	}
+	return out
+}
+
+func (a *App) GetCachedDevices() ([]ScannedDevice, error) {
+	devices, err := ble.GetCachedDevices()
+	if err != nil {
+		return nil, err
+	}
+	return bleDevicesToApp(devices), nil
+}
+
+func (a *App) ScanDevices() ([]ScannedDevice, error) {
+	devices, err := ble.ScanDevices()
+	if err != nil {
+		return nil, fmt.Errorf("scan failed: %w", err)
+	}
+	return bleDevicesToApp(devices), nil
+}
+
+func (a *App) GetCapabilities() *Capabilities {
+	if a.dev == nil {
+		return &Capabilities{}
+	}
+	set := map[string]bool{}
+	for _, uuid := range a.dev.ListCharacteristics() {
+		set[uuid] = true
+	}
+	return &Capabilities{
+		HasANC:           set[protocol.CharANCConfiguration],
+		HasEQ:            set[protocol.CharEqualizerSettings],
+		HasBattery:       set[protocol.CharBatteryLevel],
+		HasVolume:        set[protocol.CharVolume],
+		HasRoomPlacement: set[protocol.CharRoomPlacement],
+		HasPartyMode:     set[protocol.CharPartyMode],
+		HasNightMode:     set[protocol.CharNightMode],
+		HasLED:           set[protocol.CharLEDIntensity],
+	}
 }
 
 func (a *App) Connect(target string) error {
