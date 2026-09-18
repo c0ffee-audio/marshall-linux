@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { Connect, Disconnect, GetInfo, SetANC, SetEQ, ScanDevices, GetCachedDevices, GetCapabilities } from "../wailsjs/go/main/App";
+  import DeviceIcon from "./lib/DeviceIcon.svelte";
 
   let scanning = false;
   let scannedDevices = [];
@@ -130,14 +131,21 @@
 
   <!-- Header -->
   <header>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M9 18V5l12-2v13"/>
-      <circle cx="6" cy="18" r="3"/>
-      <circle cx="18" cy="16" r="3"/>
-    </svg>
-    <span>Marshall Linux</span>
+    <div class="brand">
+      <div class="brand-badge">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
+      <span class="brand-name">Marshall&nbsp;Linux</span>
+    </div>
     {#if connected}
-      <div class="status-dot"></div>
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        Connected
+      </div>
     {/if}
   </header>
 
@@ -148,10 +156,10 @@
 
       {#if scanning}
         <div class="scan-state">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="spin">
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
-          <span class="scan-label">Searching for devices...</span>
+          <span class="scan-label">Searching for devices…</span>
         </div>
 
       {:else if scannedDevices.length > 0}
@@ -164,21 +172,18 @@
               disabled={!!connectingDevice}
             >
               <div class="device-item-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-                  <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-                </svg>
+                <DeviceIcon name={d.name} size={52} strokeWidth={1.4} />
               </div>
               <div class="device-item-info">
                 <span class="device-item-name">{d.name}</span>
                 <span class="device-item-addr">{d.address}</span>
               </div>
               {#if connectingDevice === d.address}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                 </svg>
               {:else}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
               {/if}
@@ -186,7 +191,7 @@
           {/each}
         </div>
         <button class="btn-rescan" on:click={scan}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
@@ -195,7 +200,7 @@
 
       {:else}
         <button class="btn-scan" on:click={scan}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
             <circle cx="12" cy="12" r="2"/>
             <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
           </svg>
@@ -212,6 +217,7 @@
       {#if showManual}
         <div class="input-row">
           <input
+            id="manual-target"
             bind:value={manualTarget}
             placeholder="Device name or MAC address"
             on:keydown={(e) => e.key === "Enter" && connectTo(manualTarget)}
@@ -235,20 +241,18 @@
 
   {:else}
 
-    <!-- Device info -->
-    <section class="device-card">
-      <div class="device-left">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
-          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-        </svg>
-        <div>
-          <div class="device-name">{model}</div>
-          <div class="device-fw">{firmware}</div>
-        </div>
+    <!-- Device hero -->
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="hero-photo">
+        <DeviceIcon name={model} size={148} strokeWidth={0.9} />
       </div>
-      <div class="battery">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <div class="hero-name">{model}</div>
+      <div class="hero-fw">FW {firmware}</div>
+
+      {#if caps.hasBattery}
+      <div class="battery-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <rect x="2" y="7" width="18" height="11" rx="2"/>
           <path d="M22 11v3"/>
           <rect x="4" y="9" width="{Math.round(battery / 100 * 14)}" height="7" rx="1" fill="currentColor" stroke="none"
@@ -259,6 +263,7 @@
         </svg>
         <span class:low={battery <= 25} class:med={battery > 25 && battery <= 60}>{battery}%</span>
       </div>
+      {/if}
     </section>
 
     <!-- ANC -->
@@ -309,16 +314,18 @@
 
     <!-- Footer -->
     <footer>
-      <button class="icon-btn" title="Refresh" on:click={refresh}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <button class="btn-pill" on:click={refresh}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
         </svg>
+        Refresh
       </button>
-      <button class="icon-btn disconnect" title="Disconnect" on:click={disconnect}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <button class="btn-pill disconnect" on:click={disconnect}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M18.36 6.64A9 9 0 1 1 5.64 19.36"/><path d="M12 2v10"/>
         </svg>
+        Disconnect
       </button>
     </footer>
 
@@ -330,19 +337,19 @@
 <style>
   :global(*, *::before, *::after) { box-sizing: border-box; margin: 0; padding: 0; }
   :global(body) {
-    background: #111;
-    color: #e0e0e0;
+    background: #0d0d0d;
+    color: #f2f0ec;
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 13px;
+    font-size: 13.5px;
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
 
   main {
-    padding: 24px 20px;
+    padding: 26px 24px 22px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 26px;
     min-height: 100vh;
   }
 
@@ -351,82 +358,110 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
   }
-  header svg { opacity: 0.7; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-badge {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: #1a1a1a;
+    border: 1px solid #232323;
+    border-radius: 8px;
+    color: #e8c84a;
+  }
+  .brand-name {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .status-pill {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #e8c84a12;
+    border: 1px solid #e8c84a2e;
+    color: #e8c84a;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 5px 10px;
+    border-radius: 999px;
+  }
   .status-dot {
     width: 6px; height: 6px;
     background: #e8c84a;
     border-radius: 50%;
-    margin-left: auto;
     animation: pulse 3s infinite;
   }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
   /* Connect section */
-  .connect-section { display: flex; flex-direction: column; gap: 12px; }
-  .hint { color: #444; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .connect-section { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+  .hint { color: #4a4a4a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 
   /* Scanning state */
   .scan-state {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 20px 0;
+    justify-content: center;
+    gap: 14px;
+    padding: 64px 0;
     color: #555;
+    flex: 1;
   }
-  .scan-label { font-size: 12px; }
+  .scan-label { font-size: 13px; }
 
   /* Scan button */
   .btn-scan {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
     background: #161616;
-    border: 1px solid #252525;
-    border-radius: 8px;
-    padding: 14px;
+    border: 1px solid #232323;
+    border-radius: 12px;
+    padding: 22px;
     color: #888;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
     width: 100%;
   }
-  .btn-scan:hover { color: #e8c84a; border-color: #e8c84a30; }
+  .btn-scan:hover { color: #e8c84a; border-color: #e8c84a40; background: #1a1a1a; }
 
   /* Device list */
   .device-list {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
   }
   .device-item {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     background: #161616;
-    border: 1px solid #1e1e1e;
-    border-radius: 8px;
-    padding: 11px 14px;
+    border: 1px solid #1f1f1f;
+    border-radius: 12px;
+    padding: 10px 14px;
     cursor: pointer;
     transition: all 0.15s;
     width: 100%;
     text-align: left;
     color: #e0e0e0;
   }
-  .device-item:hover:not(:disabled) { border-color: #2a2a2a; background: #1a1a1a; }
+  .device-item:hover:not(:disabled) { border-color: #e8c84a30; background: #1a1a1a; }
   .device-item:disabled { opacity: 0.5; cursor: not-allowed; }
-  .device-item-icon { color: #444; flex-shrink: 0; }
-  .device-item-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .device-item-name { font-size: 13px; font-weight: 500; color: #ddd; }
-  .device-item-addr { font-size: 10px; font-family: monospace; color: #3a3a3a; }
-  .arrow-icon { color: #333; transition: color 0.15s; }
-  .device-item:hover .arrow-icon { color: #666; }
+  .device-item-icon { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 52px; }
+  .device-item-info { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .device-item-name { font-size: 14px; font-weight: 600; color: #f0f0f0; }
+  .device-item-addr { font-size: 10.5px; font-family: ui-monospace, 'SF Mono', monospace; color: #444; }
+  .arrow-icon { color: #333; transition: color 0.15s; flex-shrink: 0; }
+  .device-item:hover .arrow-icon { color: #e8c84a; }
 
   /* Rescan button */
   .btn-rescan {
@@ -435,49 +470,51 @@
     gap: 6px;
     background: transparent;
     border: 1px solid #1e1e1e;
-    border-radius: 6px;
-    padding: 7px 12px;
-    color: #444;
-    font-size: 11px;
+    border-radius: 8px;
+    padding: 8px 13px;
+    color: #4a4a4a;
+    font-size: 11.5px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
     align-self: flex-start;
   }
-  .btn-rescan:hover { color: #777; border-color: #2a2a2a; }
+  .btn-rescan:hover { color: #999; border-color: #2a2a2a; }
 
   /* Manual input */
-  .manual-toggle { display: flex; }
+  .manual-toggle { display: flex; margin-top: auto; }
   .link-btn {
     background: none;
     border: none;
-    color: #333;
-    font-size: 11px;
+    color: #3a3a3a;
+    font-size: 11.5px;
     cursor: pointer;
     padding: 0;
     transition: color 0.15s;
   }
-  .link-btn:hover { color: #666; }
+  .link-btn:hover { color: #777; }
 
   .input-row { display: flex; gap: 8px; }
 
   input {
     flex: 1;
     background: #1a1a1a;
-    border: 1px solid #252525;
-    border-radius: 6px;
-    padding: 9px 12px;
+    border: 1px solid #262626;
+    border-radius: 8px;
+    padding: 11px 13px;
     color: #e0e0e0;
-    font-size: 13px;
+    font-size: 13.5px;
     outline: none;
     transition: border-color 0.15s;
   }
   input:focus { border-color: #e8c84a; }
+  input:focus-visible { outline: 2px solid #e8c84a60; outline-offset: 1px; }
 
   .btn-connect {
     background: #e8c84a;
     border: none;
-    border-radius: 6px;
-    width: 38px;
+    border-radius: 8px;
+    width: 42px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     color: #111;
@@ -490,74 +527,119 @@
   .spin { animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Device card */
-  .device-card {
-    background: #161616;
-    border: 1px solid #1e1e1e;
-    border-radius: 10px;
-    padding: 14px 16px;
+  /* Hero */
+  .hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 20px 16px 22px;
+    background: #141414;
+    border: 1px solid #1f1f1f;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .hero-glow {
+    position: absolute;
+    top: -40%;
+    left: 50%;
+    width: 320px;
+    height: 320px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, #e8c84a1c 0%, transparent 68%);
+    pointer-events: none;
+  }
+  .hero-photo {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    height: 148px;
+    color: #3a3a3a;
   }
-  .device-left { display: flex; align-items: center; gap: 12px; color: #555; }
-  .device-left svg { flex-shrink: 0; }
-  .device-name { color: #e0e0e0; font-weight: 600; font-size: 13px; margin-bottom: 2px; }
-  .device-fw { color: #3a3a3a; font-size: 10px; font-family: monospace; }
-
-  .battery { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #4ade80; }
-  .battery .low, .battery.low { color: #f87171; }
-  .battery .med, .battery.med { color: #facc15; }
+  .hero-name {
+    position: relative;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    color: #fff;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .hero-fw {
+    position: relative;
+    color: #4a4a4a;
+    font-size: 10.5px;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.03em;
+  }
+  .battery-pill {
+    position: relative;
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 10px;
+    background: #1c1c1c;
+    border: 1px solid #262626;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4ade80;
+  }
+  .battery-pill .low, .battery-pill span.low { color: #f87171; }
+  .battery-pill .med, .battery-pill span.med { color: #facc15; }
 
   /* Blocks */
   .block { display: flex; flex-direction: column; gap: 12px; }
   .block-header {
     display: flex; align-items: center; gap: 7px;
-    color: #555;
-    font-size: 10px;
+    color: #666;
+    font-size: 10.5px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
+    letter-spacing: 0.09em;
+    font-weight: 700;
   }
 
   /* ANC segmented */
   .anc-row {
     display: flex;
     background: #161616;
-    border: 1px solid #1e1e1e;
-    border-radius: 8px;
+    border: 1px solid #1f1f1f;
+    border-radius: 10px;
     overflow: hidden;
   }
   .seg-btn {
     flex: 1;
     background: transparent;
     border: none;
-    padding: 10px 0;
+    padding: 13px 0;
     color: #666;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
     letter-spacing: 0.02em;
   }
   .seg-btn:hover { color: #aaa; }
-  .seg-btn.active { background: #1e1e1e; color: #e8c84a; }
-  .seg-btn + .seg-btn { border-left: 1px solid #1e1e1e; }
+  .seg-btn.active { background: #e8c84a12; color: #e8c84a; }
+  .seg-btn + .seg-btn { border-left: 1px solid #1f1f1f; }
 
   /* EQ grid */
   .eq-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
   }
   .eq-btn {
     background: #161616;
-    border: 1px solid #1e1e1e;
-    border-radius: 6px;
-    padding: 7px 4px;
-    color: #666;
-    font-size: 11px;
-    font-weight: 500;
+    border: 1px solid #1f1f1f;
+    border-radius: 9px;
+    padding: 13px 6px;
+    color: #777;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
@@ -565,37 +647,41 @@
     text-overflow: ellipsis;
   }
   .eq-btn:hover { color: #bbb; border-color: #2a2a2a; }
-  .eq-btn.active { color: #e8c84a; border-color: #e8c84a30; background: #e8c84a08; }
+  .eq-btn.active { color: #e8c84a; border-color: #e8c84a40; background: #e8c84a10; }
 
   /* Footer */
-  footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: auto; }
+  footer { display: flex; gap: 10px; margin-top: auto; }
 
-  .icon-btn {
+  .btn-pill {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
     background: #161616;
-    border: 1px solid #1e1e1e;
-    border-radius: 6px;
-    width: 32px; height: 32px;
-    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #1f1f1f;
+    border-radius: 10px;
+    padding: 11px 0;
     cursor: pointer;
-    color: #666;
+    color: #888;
+    font-size: 12.5px;
+    font-weight: 600;
     transition: all 0.15s;
   }
-  .icon-btn:hover { color: #888; border-color: #2a2a2a; }
-  .icon-btn.disconnect:hover { color: #f87171; border-color: #f8717130; }
+  .btn-pill:hover { color: #ccc; border-color: #2a2a2a; }
+  .btn-pill.disconnect:hover { color: #f87171; border-color: #f8717130; background: #1e1515; }
 
   .no-features {
-    color: #333;
-    font-size: 11px;
+    color: #3a3a3a;
+    font-size: 11.5px;
     text-align: center;
-    padding: 16px 0;
+    padding: 20px 0;
+    margin-top: auto;
   }
 
   .error {
     color: #f87171;
-    font-size: 11px;
-    padding: 8px 10px;
+    font-size: 11.5px;
+    padding: 9px 12px;
     background: #1e1515;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #f8717120;
   }
 </style>

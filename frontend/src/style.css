@@ -1,26 +1,33 @@
 html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
+    background-color: #0d0d0d;
     color: white;
 }
 
 body {
     margin: 0;
     color: white;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Helvetica Neue", sans-serif;
 }
 
 @font-face {
-    font-family: "Nunito";
+    font-family: "Inter";
     font-style: normal;
-    font-weight: 400;
+    font-weight: 400 700;
+    font-display: swap;
     src: local(""),
-    url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+    url("assets/fonts/inter-variable-latin.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Oswald";
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: local(""),
+    url("assets/fonts/oswald-variable-latin.woff2") format("woff2");
 }
 
 #app {
     height: 100vh;
-    text-align: center;
 }

@@ -17,10 +17,10 @@ func main() {
 
 	err := wails.Run(&options.App{
 		Title:     "Marshall Linux",
-		Width:     420,
-		Height:    580,
-		MinWidth:  380,
-		MinHeight: 520,
+		Width:     480,
+		Height:    840,
+		MinWidth:  440,
+		MinHeight: 740,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
